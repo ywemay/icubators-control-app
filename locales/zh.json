@@ -1,0 +1,92 @@
+{
+  "app": {
+    "title": "孵化器控制",
+    "subtitle": "通过本地网络控制多个孵化器",
+    "discover": "发现孵化器",
+    "settings": "设置",
+    "language": "语言",
+    "english": "英语",
+    "chinese": "中文"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "temperature": "温度",
+    "humidity": "湿度",
+    "target": "目标",
+    "current": "当前",
+    "status": "状态",
+    "active": "运行中",
+    "inactive": "未运行",
+    "heater": "加热器",
+    "fan": "风扇",
+    "light": "灯光",
+    "eggTurner": "翻蛋器",
+    "on": "开",
+    "off": "关",
+    "timeUntilNextTurn": "下次翻蛋时间",
+    "incubation": "孵化",
+    "species": "种类",
+    "elapsedDays": "已孵化天数",
+    "remainingDays": "剩余天数",
+    "candlingDay": "照蛋日",
+    "lockdownDay": "锁定期",
+    "hatchingDay": "出雏日"
+  },
+  "controls": {
+    "title": "控制",
+    "turnEggsNow": "立即翻蛋",
+    "resetTimer": "重置计时器",
+    "startIncubation": "开始孵化",
+    "stopIncubation": "停止孵化",
+    "restartSystem": "重启系统",
+    "factoryReset": "恢复出厂设置",
+    "selectSpecies": "选择种类",
+    "adjustDays": "调整天数",
+    "setDay": "设置天数",
+    "days": "天"
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "temperatureUnit": "温度单位",
+    "celsius": "°C",
+    "fahrenheit": "°F",
+    "updateInterval": "更新间隔",
+    "seconds": "秒",
+    "networkDiscovery": "网络发现",
+    "autoDiscover": "自动发现",
+    "manualIP": "手动IP地址",
+    "save": "保存",
+    "cancel": "取消"
+  },
+  "species": {
+    "quail": "鹌鹑",
+    "chicken": "鸡",
+    "duck": "鸭",
+    "goose": "鹅",
+    "peacock": "孔雀",
+    "turkey": "火鸡",
+    "pheasant": "野鸡",
+    "guineaFowl": "珍珠鸡",
+    "custom": "自定义"
+  },
+  "errors": {
+    "connectionFailed": "连接失败",
+    "invalidResponse": "设备响应无效",
+    "deviceNotFound": "设备未找到",
+    "networkError": "网络错误"
+  },
+  "success": {
+    "commandSent": "命令发送成功",
+    "configUpdated": "配置已更新",
+    "incubationStarted": "孵化已开始",
+    "incubationStopped": "孵化已停止"
+  },
+  "buttons": {
+    "add": "添加",
+    "remove": "移除",
+    "refresh": "刷新",
+    "save": "保存",
+    "cancel": "取消"
+  }
+}

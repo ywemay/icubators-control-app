@@ -1,0 +1,92 @@
+{
+  "app": {
+    "title": "Incubator Control",
+    "subtitle": "Control multiple incubators via local network",
+    "discover": "Discover Incubators",
+    "settings": "Settings",
+    "language": "Language",
+    "english": "English",
+    "chinese": "Chinese"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "target": "Target",
+    "current": "Current",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "heater": "Heater",
+    "fan": "Fan",
+    "light": "Light",
+    "eggTurner": "Egg Turner",
+    "on": "ON",
+    "off": "OFF",
+    "timeUntilNextTurn": "Time until next turn",
+    "incubation": "Incubation",
+    "species": "Species",
+    "elapsedDays": "Elapsed Days",
+    "remainingDays": "Remaining Days",
+    "candlingDay": "Candling Day",
+    "lockdownDay": "Lockdown Day",
+    "hatchingDay": "Hatching Day"
+  },
+  "controls": {
+    "title": "Controls",
+    "turnEggsNow": "Turn Eggs Now",
+    "resetTimer": "Reset Timer",
+    "startIncubation": "Start Incubation",
+    "stopIncubation": "Stop Incubation",
+    "restartSystem": "Restart System",
+    "factoryReset": "Factory Reset",
+    "selectSpecies": "Select Species",
+    "adjustDays": "Adjust Days",
+    "setDay": "Set Day",
+    "days": "days"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "temperatureUnit": "Temperature Unit",
+    "celsius": "°C",
+    "fahrenheit": "°F",
+    "updateInterval": "Update Interval",
+    "seconds": "seconds",
+    "networkDiscovery": "Network Discovery",
+    "autoDiscover": "Auto Discover",
+    "manualIP": "Manual IP Address",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "species": {
+    "quail": "Quail",
+    "chicken": "Chicken",
+    "duck": "Duck",
+    "goose": "Goose",
+    "peacock": "Peacock",
+    "turkey": "Turkey",
+    "pheasant": "Pheasant",
+    "guineaFowl": "Guinea Fowl",
+    "custom": "Custom"
+  },
+  "errors": {
+    "connectionFailed": "Connection failed",
+    "invalidResponse": "Invalid response from device",
+    "deviceNotFound": "Device not found",
+    "networkError": "Network error"
+  },
+  "success": {
+    "commandSent": "Command sent successfully",
+    "configUpdated": "Configuration updated",
+    "incubationStarted": "Incubation started",
+    "incubationStopped": "Incubation stopped"
+  },
+  "buttons": {
+    "add": "Add",
+    "remove": "Remove",
+    "refresh": "Refresh",
+    "save": "Save",
+    "cancel": "Cancel"
+  }
+}
