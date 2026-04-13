@@ -110,6 +110,16 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
+  const handleStopIncubation = async () => {
+    if (!api) return;
+    try {
+      await api.stopIncubation();
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to stop incubation:", error);
+    }
+  };
+
   const handleSelectIncubator = async (url: string) => {
     setSelectedIncubator(url);
     try {
@@ -370,13 +380,15 @@ const DashboardScreen: React.FC = () => {
                 variant="success"
                 size="small"
                 className="flex-1"
+                disabled={status?.incubator_state === "incubating" || status?.incubation_active}
               />
               <Button
                 title="controls.stopIncubation"
-                onPress={() => api?.stopIncubation()}
+                onPress={handleStopIncubation}
                 variant="danger"
                 size="small"
                 className="flex-1"
+                disabled={status?.incubator_state === "idle" || !status?.incubation_active}
               />
             </View>
           </View>

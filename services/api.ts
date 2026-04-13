@@ -14,6 +14,8 @@ export interface IncubatorStatus {
   next_turn_seconds: number; // New field - time until next automatic turn in seconds
   turn_interval: number; // New field - turn interval in seconds
   incubation_active: boolean;
+  incubator_state: string; // New field - "idle" or "incubating"
+  incubator_state_code: number; // New field - 0 for idle, 1 for incubating
   wifi_connected: boolean;
   ip_address: string;
   hostname: string;
@@ -131,6 +133,8 @@ class IncubatorAPI {
       next_turn_seconds: data.next_turn_seconds || 0,
       turn_interval: data.turn_interval || 8 * 60 * 60, // Default 8 hours
       incubation_active: data.incubation_active || false,
+      incubator_state: data.incubator_state || (data.incubation_active ? "incubating" : "idle"),
+      incubator_state_code: data.incubator_state_code || (data.incubation_active ? 1 : 0),
       wifi_connected: data.wifi_connected,
       ip_address: data.ip_address,
       hostname: data.hostname,
