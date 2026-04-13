@@ -24,6 +24,7 @@
     "on": "开",
     "off": "关",
     "timeUntilNextTurn": "下次翻蛋时间",
+    "turnInterval": "翻蛋间隔",
     "incubation": "孵化",
     "species": "种类",
     "elapsedDays": "已孵化天数",
@@ -35,6 +36,7 @@
   "controls": {
     "title": "控制",
     "turnEggsNow": "立即翻蛋",
+    "stopTurning": "停止翻蛋",
     "resetTimer": "重置计时器",
     "startIncubation": "开始孵化",
     "stopIncubation": "停止孵化",

@@ -8,8 +8,11 @@ export interface IncubatorStatus {
   heater_on: boolean;
   fan_on: boolean;
   light_on: boolean;
-  egg_turner_active: boolean;
-  time_until_next_turn: number;
+  egg_turner_active: boolean; // Legacy field - keep for backward compatibility
+  turner_turning: boolean; // New field - indicates if motor is currently ON
+  time_until_next_turn: number; // Legacy field - keep for backward compatibility
+  next_turn_seconds: number; // New field - time until next automatic turn in seconds
+  turn_interval: number; // New field - turn interval in seconds
   incubation_active: boolean;
   wifi_connected: boolean;
   ip_address: string;
@@ -111,7 +114,28 @@ class IncubatorAPI {
   // Status endpoints
   async getStatus(): Promise<IncubatorStatus> {
     const response = await axios.get(`${this.baseURL}/api/status`);
-    return response.data;
+    const data = response.data;
+    
+    // Map API response to our interface
+    return {
+      temperature: data.temperature,
+      humidity: data.humidity,
+      target_temperature: data.target_temp || data.target_temperature,
+      target_humidity: data.target_humidity || 50, // Default if not provided
+      heater_on: data.heater_on,
+      fan_on: data.fan_on,
+      light_on: data.light_on || false,
+      egg_turner_active: data.turner_active || data.egg_turner_active || false,
+      turner_turning: data.turner_turning || data.turner_active || false,
+      time_until_next_turn: data.next_turn_seconds || data.time_until_next_turn || 0,
+      next_turn_seconds: data.next_turn_seconds || 0,
+      turn_interval: data.turn_interval || 8 * 60 * 60, // Default 8 hours
+      incubation_active: data.incubation_active || false,
+      wifi_connected: data.wifi_connected,
+      ip_address: data.ip_address,
+      hostname: data.hostname,
+      uptime: data.uptime || 0,
+    };
   }
 
   async getConfig(): Promise<IncubatorConfig> {
@@ -132,6 +156,11 @@ class IncubatorAPI {
     }
     const response = await axios.post(`${this.baseURL}/api/command`, payload);
     return response.data;
+  }
+
+  // Stop turning command
+  async stopTurning(): Promise<{ success: boolean; message: string }> {
+    return this.sendCommand("stop_turning");
   }
 
   // Incubation management

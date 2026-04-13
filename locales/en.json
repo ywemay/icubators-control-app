@@ -24,6 +24,7 @@
     "on": "ON",
     "off": "OFF",
     "timeUntilNextTurn": "Time until next turn",
+    "turnInterval": "Turn interval",
     "incubation": "Incubation",
     "species": "Species",
     "elapsedDays": "Elapsed Days",
@@ -35,6 +36,7 @@
   "controls": {
     "title": "Controls",
     "turnEggsNow": "Turn Eggs Now",
+    "stopTurning": "Stop Turning",
     "resetTimer": "Reset Timer",
     "startIncubation": "Start Incubation",
     "stopIncubation": "Stop Incubation",

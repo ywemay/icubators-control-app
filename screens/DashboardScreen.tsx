@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import StatusCard from "../components/StatusCard";
 import Button from "../components/Button";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -15,6 +16,7 @@ const DashboardScreen: React.FC = () => {
   const [selectedIncubator, setSelectedIncubator] = useState<string>("");
   const [manualIPs, setManualIPs] = useState<string[]>([]);
   const [autoDiscover, setAutoDiscover] = useState(true);
+  const [temperatureUnit, setTemperatureUnit] = useState<"celsius" | "fahrenheit">("celsius");
 
   const api = selectedIncubator ? new IncubatorAPI(selectedIncubator) : null;
 
@@ -22,11 +24,19 @@ const DashboardScreen: React.FC = () => {
     loadSettings();
   }, []);
 
+  // Reload settings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadSettings();
+    }, [])
+  );
+
   const loadSettings = async () => {
     try {
       const settings = await settingsService.getSettings();
       setManualIPs(settings.manualIPs);
       setAutoDiscover(settings.autoDiscover);
+      setTemperatureUnit(settings.temperatureUnit);
       
       // Set selected incubator
       if (settings.selectedIncubator) {
@@ -73,14 +83,20 @@ const DashboardScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const handleTurnEggsNow = async () => {
+  const handleToggleTurn = async () => {
     if (!api) return;
     try {
-      await api.sendCommand("turn_now");
+      if (status?.turner_turning) {
+        // If currently turning, stop it
+        await api.stopTurning();
+      } else {
+        // If not turning, start it
+        await api.sendCommand("turn_now");
+      }
       // Refresh data after command
       await fetchData();
     } catch (error) {
-      console.error("Failed to turn eggs:", error);
+      console.error("Failed to toggle turn:", error);
     }
   };
 
@@ -112,6 +128,20 @@ const DashboardScreen: React.FC = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Convert temperature based on selected unit
+  const convertTemperature = (celsius: number): { value: number; unit: string } => {
+    if (temperatureUnit === "fahrenheit") {
+      return {
+        value: (celsius * 9/5) + 32,
+        unit: "°F"
+      };
+    }
+    return {
+      value: celsius,
+      unit: "°C"
+    };
   };
 
   if (!status) {
@@ -198,16 +228,18 @@ const DashboardScreen: React.FC = () => {
 
         {/* Temperature and Humidity Cards */}
         <View className="flex-row flex-wrap gap-4 mb-6">
-          <StatusCard
-            title="dashboard.temperature"
-            value={status.temperature.toFixed(1)}
-            unit="°C"
-            status={
-              Math.abs(status.temperature - status.target_temperature) < 0.5
-                ? "good"
-                : "warning"
-            }
-          />
+          {status && (
+            <StatusCard
+              title="dashboard.temperature"
+              value={convertTemperature(status.temperature).value.toFixed(1)}
+              unit={convertTemperature(status.temperature).unit}
+              status={
+                Math.abs(status.temperature - status.target_temperature) < 0.5
+                  ? "good"
+                  : "warning"
+              }
+            />
+          )}
           <StatusCard
             title="dashboard.humidity"
             value={status.humidity.toFixed(1)}
@@ -245,7 +277,7 @@ const DashboardScreen: React.FC = () => {
             <View className="flex-row items-center">
               <View
                 className={`w-3 h-3 rounded-full mr-2 ${
-                  status.egg_turner_active ? "bg-green-500" : "bg-gray-300"
+                  status.turner_turning ? "bg-green-500" : "bg-gray-300"
                 }`}
               />
               <Text className="text-gray-700">
@@ -253,13 +285,16 @@ const DashboardScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-          {status.time_until_next_turn > 0 && (
+          {status.next_turn_seconds > 0 && (
             <View className="mt-4">
               <Text className="text-gray-700">
                 {t("dashboard.timeUntilNextTurn")}:
               </Text>
               <Text className="text-xl font-bold text-blue-600">
-                {formatTime(status.time_until_next_turn)}
+                {formatTime(status.next_turn_seconds)}
+              </Text>
+              <Text className="text-gray-500 text-sm mt-1">
+                {t("dashboard.turnInterval")}: {Math.floor(status.turn_interval / 3600)}h
               </Text>
             </View>
           )}
@@ -319,9 +354,9 @@ const DashboardScreen: React.FC = () => {
           </Text>
           <View className="space-y-3">
             <Button
-              title="controls.turnEggsNow"
-              onPress={handleTurnEggsNow}
-              variant="primary"
+              title={status.turner_turning ? "controls.stopTurning" : "controls.turnEggsNow"}
+              onPress={handleToggleTurn}
+              variant={status.turner_turning ? "danger" : "primary"}
             />
             <Button
               title="controls.resetTimer"

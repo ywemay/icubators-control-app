@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, Switch, TextInput, Alert, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import Button from "../components/Button";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Language } from "../services/i18n";
@@ -25,56 +26,129 @@ const SettingsScreen: React.FC = () => {
     loadSettings();
   }, []);
 
+  // Reload settings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadSettings();
+    }, [])
+  );
+
+  // Debug: log temperature unit changes
+  useEffect(() => {
+    console.log("Temperature unit state changed to:", temperatureUnit);
+  }, [temperatureUnit]);
+
   const loadSettings = async () => {
     try {
       setIsLoading(true);
       const settings = await settingsService.getSettings();
-      setLanguage(settings.language);
+      console.log("Loaded settings:", {
+        temperatureUnit: settings.temperatureUnit,
+        language: settings.language,
+        updateInterval: settings.updateInterval,
+        autoDiscover: settings.autoDiscover,
+        manualIPs: settings.manualIPs
+      });
+      
+      setLanguageState(settings.language);
       setTemperatureUnit(settings.temperatureUnit);
       setUpdateInterval(settings.updateInterval.toString());
       setAutoDiscover(settings.autoDiscover);
       setManualIPs(settings.manualIPs);
     } catch (error) {
       console.error("Failed to load settings:", error);
-      Alert.alert("Error", "Failed to load settings");
+      Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSave = async () => {
+  // Auto-save language when changed
+  const handleLanguageChange = async (lang: Language) => {
+    setLanguageState(lang);
     try {
-      // Update language through context (which will update i18n and trigger re-render)
-      await setLanguage(language);
-      
-      const settingsUpdate: Partial<AppSettings> = {
-        language,
-        temperatureUnit,
-        updateInterval: parseInt(updateInterval) || 5,
-        autoDiscover,
-        manualIPs,
-      };
-      
-      await settingsService.updateSettings(settingsUpdate);
-      Alert.alert(t("success.configUpdated"), t("success.configUpdated"));
+      await setLanguage(lang);
+      await settingsService.updateSettings({ language: lang });
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      console.error("Failed to save language:", error);
       Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
     }
   };
 
-  const handleAddManualIP = () => {
+  // Auto-save temperature unit when changed
+  const handleTemperatureUnitChange = async (unit: "celsius" | "fahrenheit") => {
+    console.log("Changing temperature unit to:", unit);
+    setTemperatureUnit(unit);
+    try {
+      await settingsService.updateSettings({ temperatureUnit: unit });
+      console.log("Temperature unit saved successfully:", unit);
+    } catch (error) {
+      console.error("Failed to save temperature unit:", error);
+      Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
+      // Revert on error
+      loadSettings();
+    }
+  };
+
+  // Auto-save update interval when changed (with debounce)
+  const handleUpdateIntervalChange = async (interval: string) => {
+    setUpdateInterval(interval);
+    const numInterval = parseInt(interval) || 5;
+    if (numInterval >= 1 && numInterval <= 60) {
+      try {
+        await settingsService.updateSettings({ updateInterval: numInterval });
+      } catch (error) {
+        console.error("Failed to save update interval:", error);
+      }
+    }
+  };
+
+  // Auto-save autoDiscover when changed
+  const handleAutoDiscoverChange = async (value: boolean) => {
+    setAutoDiscover(value);
+    try {
+      await settingsService.updateSettings({ autoDiscover: value });
+    } catch (error) {
+      console.error("Failed to save autoDiscover:", error);
+      Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
+    }
+  };
+
+  // Auto-save manual IPs when changed
+  const handleAddManualIP = async () => {
     if (manualIP.trim() && !manualIPs.includes(manualIP.trim())) {
       const newIPs = [...manualIPs, manualIP.trim()];
       setManualIPs(newIPs);
       setManualIP("");
+      try {
+        await settingsService.updateSettings({ manualIPs: newIPs });
+      } catch (error) {
+        console.error("Failed to save manual IPs:", error);
+        Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
+      }
     }
   };
 
-  const handleRemoveManualIP = (ip: string) => {
+  const handleRemoveManualIP = async (ip: string) => {
     const newIPs = manualIPs.filter(item => item !== ip);
     setManualIPs(newIPs);
+    try {
+      await settingsService.updateSettings({ manualIPs: newIPs });
+    } catch (error) {
+      console.error("Failed to save manual IPs:", error);
+      Alert.alert(t("errors.connectionFailed"), t("errors.connectionFailed"));
+    }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-600">Loading settings...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -98,7 +172,7 @@ const SettingsScreen: React.FC = () => {
                 className={`flex-row items-center justify-between p-3 rounded-lg ${
                   language === lang.code ? "bg-blue-50" : "bg-gray-50"
                 }`}
-                onPress={() => setLanguageState(lang.code)}
+                onPress={() => handleLanguageChange(lang.code)}
                 activeOpacity={0.7}
               >
                 <Text className="text-gray-800">{lang.name}</Text>
@@ -130,7 +204,7 @@ const SettingsScreen: React.FC = () => {
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200"
               }`}
-              onPress={() => setTemperatureUnit("celsius")}
+              onPress={() => handleTemperatureUnitChange("celsius")}
               activeOpacity={0.7}
             >
               <Text
@@ -152,7 +226,7 @@ const SettingsScreen: React.FC = () => {
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200"
               }`}
-              onPress={() => setTemperatureUnit("fahrenheit")}
+              onPress={() => handleTemperatureUnitChange("fahrenheit")}
               activeOpacity={0.7}
             >
               <Text
@@ -176,11 +250,11 @@ const SettingsScreen: React.FC = () => {
           <Text className="text-lg font-semibold text-gray-900 mb-4">
             {t("settings.updateInterval")}
           </Text>
-          <View className="flex-row items-center space-x-4">
+          <View className="flex-row items-center space-x-3">
             <TextInput
-              className="flex-1 border border-gray-300 rounded-lg p-3 text-gray-900"
+              className="border border-gray-300 rounded-lg p-3 text-gray-900 w-20 text-center"
               value={updateInterval}
-              onChangeText={setUpdateInterval}
+              onChangeText={handleUpdateIntervalChange}
               keyboardType="numeric"
               placeholder="5"
             />
@@ -196,14 +270,16 @@ const SettingsScreen: React.FC = () => {
           <Text className="text-lg font-semibold text-gray-900 mb-4">
             {t("settings.networkDiscovery")}
           </Text>
+          
           <View className="space-y-4">
+            {/* Auto Discover Toggle */}
             <View className="flex-row items-center justify-between">
               <Text className="text-gray-800">
                 {t("settings.autoDiscover")}
               </Text>
               <Switch
                 value={autoDiscover}
-                onValueChange={setAutoDiscover}
+                onValueChange={handleAutoDiscoverChange}
                 trackColor={{ false: "#d1d5db", true: "#3b82f6" }}
                 thumbColor="#ffffff"
               />
@@ -254,27 +330,6 @@ const SettingsScreen: React.FC = () => {
               )}
             </View>
           </View>
-        </View>
-
-        {/* Save Button */}
-        <View className="mt-6">
-          <Button
-            title="buttons.save"
-            onPress={handleSave}
-            variant="primary"
-            size="large"
-          />
-          <Button
-            title="buttons.cancel"
-            onPress={() => {
-              // Reset to current settings
-              setLanguageState(currentLanguage);
-              loadSettings();
-            }}
-            variant="secondary"
-            size="large"
-            className="mt-3"
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
