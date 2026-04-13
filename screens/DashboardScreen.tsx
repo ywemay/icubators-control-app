@@ -133,6 +133,7 @@ const DashboardScreen: React.FC = () => {
                       onPress={() => handleSelectIncubator(ip)}
                       variant={selectedIncubator === ip ? "primary" : "secondary"}
                       size="small"
+                      translateTitle={false}
                     />
                   ))}
                 </View>
@@ -183,6 +184,7 @@ const DashboardScreen: React.FC = () => {
                       onPress={() => handleSelectIncubator(ip)}
                       variant={selectedIncubator === ip ? "primary" : "secondary"}
                       size="small"
+                      translateTitle={false}
                     />
                   ))}
                 </View>
