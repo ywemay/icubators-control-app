@@ -318,8 +318,38 @@ const DashboardScreen: React.FC = () => {
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const formatUptime = (seconds: number | undefined) => {
-    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+  const formatUptime = (uptime: string | number | undefined) => {
+    if (uptime === undefined || uptime === null) {
+      return "--";
+    }
+    
+    // If uptime is a string like "00:59:23"
+    if (typeof uptime === 'string') {
+      const parts = uptime.split(':');
+      if (parts.length === 3) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        const seconds = parseInt(parts[2], 10);
+        
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        const days = Math.floor(totalSeconds / 86400);
+        const remainingHours = Math.floor((totalSeconds % 86400) / 3600);
+        const remainingMinutes = Math.floor((totalSeconds % 3600) / 60);
+        
+        if (days > 0) {
+          return `${days}d ${remainingHours}h`;
+        } else if (remainingHours > 0) {
+          return `${remainingHours}h ${remainingMinutes}m`;
+        } else {
+          return `${remainingMinutes}m`;
+        }
+      }
+      return uptime; // Return as-is if not in HH:MM:SS format
+    }
+    
+    // If uptime is a number (seconds)
+    const seconds = uptime;
+    if (isNaN(seconds)) {
       return "--";
     }
     
@@ -428,7 +458,7 @@ const DashboardScreen: React.FC = () => {
 
           </View>
           <Text className="text-gray-600 mt-1">
-            {status.hostname} • {status.ip_address}
+            {(status as any).incubator_name || status.hostname} • {status.ip_address}
           </Text>
         </View>
 
@@ -440,11 +470,11 @@ const DashboardScreen: React.FC = () => {
               value={convertTemperature(status.temperature).value.toFixed(1)}
               unit={convertTemperature(status.temperature).unit}
               status={
-                Math.abs(status.temperature - status.target_temperature) < 0.5
+                Math.abs(status.temperature - (status as any).target_temp) < 0.5
                   ? "good"
                   : "warning"
               }
-              targetValue={convertTemperature(status.target_temperature).value.toFixed(1)}
+              targetValue={convertTemperature((status as any).target_temp).value.toFixed(1)}
               targetLabel={t("dashboard.target")}
             />
           )}
@@ -496,7 +526,7 @@ const DashboardScreen: React.FC = () => {
             <View className="flex-row items-center">
               <View
                 className={`w-3 h-3 rounded-full mr-2 ${
-                  status.heater_on ? "bg-red-500" : "bg-gray-300"
+                  (status.heater_on === true || status.heater_on === 1) ? "bg-red-500" : "bg-gray-300"
                 }`}
               />
               <Text className="text-gray-700">{t("dashboard.heater")}</Text>
@@ -558,17 +588,17 @@ const DashboardScreen: React.FC = () => {
             <View className="mb-6">
               <View className="flex-row justify-between mb-2">
                 <Text className="text-gray-700 font-medium">
-                  Day {incubationStatus.elapsed_days} of {incubationStatus.elapsed_days + incubationStatus.remaining_days}
+                  Day {(incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0} of {(incubationStatus as any).incubation_day + (incubationStatus as any).incubation_remaining_days || incubationStatus.elapsed_days + incubationStatus.remaining_days || 0}
                 </Text>
                 <Text className="text-gray-700 font-medium">
-                  {Math.round((incubationStatus.elapsed_days / (incubationStatus.elapsed_days + incubationStatus.remaining_days)) * 100)}%
+                  {Math.round((((incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0) / (((incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0) + ((incubationStatus as any).incubation_remaining_days || incubationStatus.remaining_days || 0))) * 100)}%
                 </Text>
               </View>
               <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
                 <View 
                   className="h-full bg-green-500 rounded-full"
                   style={{
-                    width: `${(incubationStatus.elapsed_days / (incubationStatus.elapsed_days + incubationStatus.remaining_days)) * 100}%`
+                    width: `${(((incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0) / (((incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0) + ((incubationStatus as any).incubation_remaining_days || incubationStatus.remaining_days || 0))) * 100}%`
                   }}
                 />
               </View>
@@ -590,7 +620,7 @@ const DashboardScreen: React.FC = () => {
                   {t("dashboard.elapsedDays")}
                 </Text>
                 <Text className="font-semibold">
-                  {incubationStatus.elapsed_days}
+                  {(incubationStatus as any).incubation_day || incubationStatus.elapsed_days || 0}
                 </Text>
               </View>
               <View className="flex-row justify-between">
@@ -598,7 +628,7 @@ const DashboardScreen: React.FC = () => {
                   {t("dashboard.remainingDays")}
                 </Text>
                 <Text className="font-semibold">
-                  {incubationStatus.remaining_days}
+                  {(incubationStatus as any).incubation_remaining_days || incubationStatus.remaining_days || 0}
                 </Text>
               </View>
               {incubationStatus.is_candling_day && (

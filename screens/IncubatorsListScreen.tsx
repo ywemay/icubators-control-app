@@ -36,8 +36,8 @@ interface IncubatorListItem {
   species: string | null;
   speciesName: string;
   incubationActive: boolean;
-  elapsedDays: number | null;
-  remainingDays: number | null;
+  elapsedDays: number | null | undefined;
+  remainingDays: number | null | undefined;
   online: boolean;
   lastSeen: Date;
 }
@@ -52,7 +52,12 @@ const IncubatorsListScreen: React.FC = () => {
   const [autoDiscover, setAutoDiscover] = useState(true);
 
   // Helper function to get a friendly incubator name
-  const getFriendlyIncubatorName = (hostname: string, ipAddress: string): string => {
+  const getFriendlyIncubatorName = (hostname: string, ipAddress: string, incubatorName?: string): string => {
+    // First priority: use the human-defined incubator name if available
+    if (incubatorName) {
+      return incubatorName;
+    }
+    
     // If hostname is just an IP or looks like a default hostname, use a friendly name
     if (!hostname || hostname === ipAddress || hostname.includes('incubator-esp32')) {
       // Extract last part of IP for a friendly name
@@ -150,7 +155,7 @@ const IncubatorsListScreen: React.FC = () => {
           
           discoveredIncubators.push({
             id: autoDiscoverAddress,
-            name: getFriendlyIncubatorName(status.hostname, status.ip_address || autoDiscoverAddress),
+            name: getFriendlyIncubatorName(status.hostname, status.ip_address || autoDiscoverAddress, (status as any).incubator_name),
             ipAddress: status.ip_address || autoDiscoverAddress,
             hostname: status.hostname || "incubator-esp32c",
             temperature: status.temperature,
@@ -177,7 +182,7 @@ const IncubatorsListScreen: React.FC = () => {
           
           discoveredIncubators.push({
             id: ip,
-            name: getFriendlyIncubatorName(status.hostname, status.ip_address || ip),
+            name: getFriendlyIncubatorName(status.hostname, status.ip_address || ip, (status as any).incubator_name),
             ipAddress: status.ip_address || ip,
             hostname: status.hostname || ip,
             temperature: status.temperature,
@@ -335,17 +340,17 @@ const IncubatorsListScreen: React.FC = () => {
                   </View>
                 </View>
                 
-                {incubator.incubationActive && incubator.elapsedDays !== null && incubator.remainingDays !== null && (
+                {incubator.incubationActive && incubator.elapsedDays !== null && incubator.elapsedDays !== undefined && incubator.remainingDays !== null && incubator.remainingDays !== undefined && (
                   <View style={styles.incubationProgress}>
                     <Text style={styles.progressText}>
-                      {t("dashboard.day")} {incubator.elapsedDays} / {incubator.elapsedDays + incubator.remainingDays}
+                      {t("dashboard.day")} {incubator.elapsedDays} / {(incubator.elapsedDays || 0) + (incubator.remainingDays || 0)}
                     </Text>
                     <View style={styles.progressBar}>
                       <View
                         style={[
                           styles.progressFill,
                           {
-                            width: `${(incubator.elapsedDays / (incubator.elapsedDays + incubator.remainingDays)) * 100}%`,
+                            width: `${((incubator.elapsedDays || 0) / ((incubator.elapsedDays || 0) + (incubator.remainingDays || 0))) * 100}%`,
                           },
                         ]}
                       />

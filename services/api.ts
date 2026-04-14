@@ -3,25 +3,31 @@ import axios from "axios";
 export interface IncubatorStatus {
   temperature: number;
   humidity: number;
-  target_temperature: number;
-  target_humidity: number;
-  heater_on: boolean;
+  target_temp: number;
+  target_humidity?: number; // Optional, not in the example response
+  heater_on: number | boolean; // Can be 1/0 or true/false
   fan_on: boolean;
-  light_on: boolean;
-  egg_turner_active: boolean; // Legacy field - keep for backward compatibility
-  turner_turning: boolean; // New field - indicates if motor is currently ON
-  time_until_next_turn: number; // Legacy field - keep for backward compatibility
-  next_turn_seconds: number; // New field - time until next automatic turn in seconds
-  turn_interval: number; // New field - turn interval in seconds
+  light_on?: boolean; // Optional, not in the example response
+  egg_turner_active?: boolean; // Legacy field - keep for backward compatibility
+  turner_active: boolean;
+  turner_turning: boolean;
+  time_until_next_turn?: number; // Legacy field - keep for backward compatibility
+  next_turn_seconds: number;
+  turn_interval: number;
+  turn_duration?: number; // New field from response
+  current_time?: string; // New field from response
+  current_date?: string; // New field from response
   incubation_active: boolean;
-  incubator_state: string; // New field - "idle" or "incubating"
-  incubator_state_code: number; // New field - 0 for idle, 1 for incubating
-  password_enabled: boolean; // New field - whether password protection is enabled
-  authenticated: boolean; // New field - whether current session is authenticated
+  incubator_state: string;
+  incubator_state_code: number;
+  password_enabled: boolean;
+  authenticated: boolean;
   wifi_connected: boolean;
+  wifi_ssid?: string; // New field from response
   ip_address: string;
   hostname: string;
-  uptime: number;
+  incubator_name?: string; // New field from response - human-defined name!
+  uptime: string | number; // Can be string "00:59:23" or number of seconds
 }
 
 export interface IncubatorConfig {
@@ -36,18 +42,20 @@ export interface IncubatorConfig {
 export interface IncubationStatus {
   session_active: boolean;
   species: string;
-  elapsed_days: number;
-  remaining_days: number;
+  elapsed_days?: number; // Legacy field
+  remaining_days?: number; // Legacy field
+  incubation_day: number; // New field from response
+  incubation_remaining_days: number; // New field from response
   is_candling_day: boolean;
   is_lockdown_day: boolean;
   is_hatching_day: boolean;
-  time_remaining: string;
-  target_temp: number;
-  target_humidity: number;
-  incubation_days: number;
-  candling_day: number;
-  lockdown_day: number;
-  turn_interval: number;
+  time_remaining?: string; // Optional, not in example response
+  target_temp?: number; // Optional, might be in status instead
+  target_humidity?: number; // Optional, might be in status instead
+  incubation_days?: number; // Optional, can be calculated
+  candling_day?: number; // Optional
+  lockdown_day?: number; // Optional
+  turn_interval?: number; // Optional, might be in status instead
 }
 
 export interface SystemInfo {
@@ -124,24 +132,30 @@ class IncubatorAPI {
     return {
       temperature: data.temperature,
       humidity: data.humidity,
-      target_temperature: data.target_temp || data.target_temperature,
+      target_temp: data.target_temp,
       target_humidity: data.target_humidity || 50, // Default if not provided
       heater_on: data.heater_on,
       fan_on: data.fan_on,
       light_on: data.light_on || false,
       egg_turner_active: data.turner_active || data.egg_turner_active || false,
-      turner_turning: data.turner_turning || data.turner_active || false,
+      turner_active: data.turner_active || false,
+      turner_turning: data.turner_turning || false,
       time_until_next_turn: data.next_turn_seconds || data.time_until_next_turn || 0,
       next_turn_seconds: data.next_turn_seconds || 0,
       turn_interval: data.turn_interval || 8 * 60 * 60, // Default 8 hours
+      turn_duration: data.turn_duration,
+      current_time: data.current_time,
+      current_date: data.current_date,
       incubation_active: data.incubation_active || false,
       incubator_state: data.incubator_state || (data.incubation_active ? "incubating" : "idle"),
       incubator_state_code: data.incubator_state_code || (data.incubation_active ? 1 : 0),
       password_enabled: data.password_enabled || false,
       authenticated: data.authenticated || false,
       wifi_connected: data.wifi_connected,
+      wifi_ssid: data.wifi_ssid,
       ip_address: data.ip_address,
       hostname: data.hostname,
+      incubator_name: data.incubator_name,
       uptime: data.uptime || 0,
     };
   }
@@ -173,8 +187,28 @@ class IncubatorAPI {
 
   // Incubation management
   async getIncubationStatus(): Promise<IncubationStatus> {
-    const response = await axios.get(`${this.baseURL}/api/incubation`);
-    return response.data;
+    try {
+      // Try to get from separate incubation endpoint
+      const response = await axios.get(`${this.baseURL}/api/incubation`);
+      return response.data;
+    } catch (error) {
+      // If separate endpoint fails, get from status endpoint
+      const status = await this.getStatus();
+      
+      // Extract incubation data from status
+      return {
+        session_active: status.incubation_active,
+        species: (status as any).incubation_species || "",
+        incubation_day: (status as any).incubation_day || 0,
+        incubation_remaining_days: (status as any).incubation_remaining_days || 0,
+        is_candling_day: (status as any).is_candling_day || false,
+        is_lockdown_day: (status as any).is_lockdown_day || false,
+        is_hatching_day: (status as any).is_hatching_day || false,
+        // Calculate elapsed_days and remaining_days for backward compatibility
+        elapsed_days: (status as any).incubation_day || 0,
+        remaining_days: (status as any).incubation_remaining_days || 0,
+      };
+    }
   }
 
   async startIncubation(species: BirdSpecies, startTime?: number): Promise<{ success: boolean; message: string }> {
