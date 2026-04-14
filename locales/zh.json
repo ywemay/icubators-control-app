@@ -90,5 +90,19 @@
     "refresh": "刷新",
     "save": "保存",
     "cancel": "取消"
+  },
+  "incubators": {
+    "title": "孵化器",
+    "noIncubators": "未找到孵化器",
+    "addFirstIncubator": "添加您的第一个孵化器以开始使用",
+    "addIncubator": "添加孵化器",
+    "offline": "离线",
+    "idle": "空闲",
+    "incubating": "孵化中",
+    "day": "天"
+  },
+  "common": {
+    "error": "错误",
+    "success": "成功"
   }
 }

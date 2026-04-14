@@ -16,6 +16,8 @@ export interface IncubatorStatus {
   incubation_active: boolean;
   incubator_state: string; // New field - "idle" or "incubating"
   incubator_state_code: number; // New field - 0 for idle, 1 for incubating
+  password_enabled: boolean; // New field - whether password protection is enabled
+  authenticated: boolean; // New field - whether current session is authenticated
   wifi_connected: boolean;
   ip_address: string;
   hostname: string;
@@ -135,6 +137,8 @@ class IncubatorAPI {
       incubation_active: data.incubation_active || false,
       incubator_state: data.incubator_state || (data.incubation_active ? "incubating" : "idle"),
       incubator_state_code: data.incubator_state_code || (data.incubation_active ? 1 : 0),
+      password_enabled: data.password_enabled || false,
+      authenticated: data.authenticated || false,
       wifi_connected: data.wifi_connected,
       ip_address: data.ip_address,
       hostname: data.hostname,
@@ -195,6 +199,32 @@ class IncubatorAPI {
   async setIncubationDay(day: number): Promise<{ success: boolean; message: string }> {
     const response = await axios.post(`${this.baseURL}/api/incubation`, { action: "set_day", day });
     return response.data;
+  }
+
+  // Authentication
+  async authenticate(password: string): Promise<{ success: boolean; message: string }> {
+    const response = await axios.post(`${this.baseURL}/api/auth`, { password });
+    return response.data;
+  }
+
+  async getAuthStatus(): Promise<{
+    authenticated: boolean;
+    password_enabled: boolean;
+    requires_password: boolean;
+  }> {
+    const response = await axios.get(`${this.baseURL}/api/auth`);
+    return response.data;
+  }
+
+  // Check if authentication is required for an action
+  async checkAuthBeforeAction(): Promise<boolean> {
+    try {
+      const authStatus = await this.getAuthStatus();
+      return !authStatus.requires_password; // Returns true if no auth needed
+    } catch (error) {
+      console.error("Failed to check auth status:", error);
+      return true; // Assume no auth needed on error
+    }
   }
 
   // System information

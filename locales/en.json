@@ -90,5 +90,19 @@
     "refresh": "Refresh",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "incubators": {
+    "title": "Incubators",
+    "noIncubators": "No Incubators Found",
+    "addFirstIncubator": "Add your first incubator to get started",
+    "addIncubator": "Add Incubator",
+    "offline": "Offline",
+    "idle": "Idle",
+    "incubating": "Incubating",
+    "day": "Day"
+  },
+  "common": {
+    "error": "Error",
+    "success": "Success"
   }
 }

@@ -1,22 +1,42 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, RefreshControl } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Alert, Modal, TextInput, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute, RouteProp } from "@react-navigation/native";
 import StatusCard from "../components/StatusCard";
 import Button from "../components/Button";
 import { useLanguage } from "../contexts/LanguageContext";
 import IncubatorAPI, { BirdSpecies, speciesNames } from "../services/api";
 import settingsService from "../services/settings";
 
+// Define route params type
+type DashboardScreenRouteProp = RouteProp<
+  { Dashboard: { incubatorId: string } },
+  'Dashboard'
+>;
+
 const DashboardScreen: React.FC = () => {
+  const route = useRoute<DashboardScreenRouteProp>();
+  const { incubatorId } = route.params || {};
   const { t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<any>(null);
   const [incubationStatus, setIncubationStatus] = useState<any>(null);
-  const [selectedIncubator, setSelectedIncubator] = useState<string>("");
+  const [selectedIncubator, setSelectedIncubator] = useState<string>(incubatorId || "");
   const [manualIPs, setManualIPs] = useState<string[]>([]);
   const [autoDiscover, setAutoDiscover] = useState(true);
   const [temperatureUnit, setTemperatureUnit] = useState<"celsius" | "fahrenheit">("celsius");
+  const [selectedSpecies, setSelectedSpecies] = useState<BirdSpecies>(BirdSpecies.CHICKEN);
+  
+  // Password authentication state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [pendingAction, setPendingAction] = useState<{
+    type: string;
+    handler: () => Promise<void>;
+    title: string;
+    message: string;
+  } | null>(null);
 
   const api = selectedIncubator ? new IncubatorAPI(selectedIncubator) : null;
 
@@ -38,13 +58,16 @@ const DashboardScreen: React.FC = () => {
       setAutoDiscover(settings.autoDiscover);
       setTemperatureUnit(settings.temperatureUnit);
       
-      // Set selected incubator
-      if (settings.selectedIncubator) {
+      // Use the incubatorId from route params if available
+      // Otherwise fall back to saved settings
+      if (!selectedIncubator && incubatorId) {
+        setSelectedIncubator(incubatorId);
+      } else if (!selectedIncubator && settings.selectedIncubator) {
         setSelectedIncubator(settings.selectedIncubator);
-      } else if (settings.manualIPs.length > 0) {
+      } else if (!selectedIncubator && settings.manualIPs.length > 0) {
         // Default to first manual IP if available
         setSelectedIncubator(settings.manualIPs[0]);
-      } else if (settings.autoDiscover) {
+      } else if (!selectedIncubator && settings.autoDiscover) {
         // Default to auto-discover address
         setSelectedIncubator("http://incubator-esp32c.local");
       }
@@ -75,6 +98,16 @@ const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Set up automatic refresh every 5 seconds
+    const intervalId = setInterval(() => {
+      if (selectedIncubator) {
+        fetchData();
+      }
+    }, 5000);
+    
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
   }, [selectedIncubator]);
 
   const onRefresh = async () => {
@@ -85,39 +118,184 @@ const DashboardScreen: React.FC = () => {
 
   const handleToggleTurn = async () => {
     if (!api) return;
-    try {
-      if (status?.turner_turning) {
-        // If currently turning, stop it
-        await api.stopTurning();
-      } else {
-        // If not turning, start it
-        await api.sendCommand("turn_now");
+    
+    const isTurning = status?.turner_turning;
+    const title = isTurning ? "Stop Turning" : "Turn Eggs Now";
+    const message = isTurning 
+      ? "Are you sure you want to stop turning?"
+      : "Are you sure you want to start turning eggs now?";
+    
+    const actionHandler = async () => {
+      try {
+        if (isTurning) {
+          // If currently turning, stop it
+          await api.stopTurning();
+        } else {
+          // If not turning, start it
+          await api.sendCommand("turn_now");
+        }
+        // Refresh data after command
+        await fetchData();
+      } catch (error) {
+        console.error("Failed to toggle turn:", error);
+        Alert.alert("Error", "Failed to toggle turn");
       }
-      // Refresh data after command
-      await fetchData();
-    } catch (error) {
-      console.error("Failed to toggle turn:", error);
-    }
+    };
+    
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: isTurning ? "Stop" : "Start", 
+          style: isTurning ? "destructive" : "default",
+          onPress: () => {
+            checkAuthAndExecute(
+              isTurning ? "stop_turning" : "turn_now",
+              title,
+              message,
+              actionHandler
+            );
+          }
+        }
+      ]
+    );
   };
 
-  const handleStartIncubation = async (species: BirdSpecies) => {
+  const handleStartIncubation = async () => {
     if (!api) return;
-    try {
-      await api.startIncubation(species);
-      await fetchData();
-    } catch (error) {
-      console.error("Failed to start incubation:", error);
-    }
+    
+    const speciesName = speciesNames[selectedSpecies];
+    
+    const actionHandler = async () => {
+      try {
+        await api.startIncubation(selectedSpecies);
+        await fetchData();
+      } catch (error) {
+        console.error("Failed to start incubation:", error);
+        Alert.alert("Error", "Failed to start incubation");
+      }
+    };
+    
+    Alert.alert(
+      "Start Incubation",
+      `Are you sure you want to start incubation for ${speciesName}?\n\nThis will:\n• Set target temperature based on species\n• Set turn interval based on species\n• Start incubation tracking`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Start", 
+          style: "default",
+          onPress: () => {
+            checkAuthAndExecute(
+              "start_incubation",
+              "Start Incubation",
+              `Starting incubation for ${speciesName}`,
+              actionHandler
+            );
+          }
+        }
+      ]
+    );
   };
 
+  // Password authentication helpers
+  const checkAuthAndExecute = async (
+    actionType: string,
+    actionTitle: string,
+    actionMessage: string,
+    actionHandler: () => Promise<void>
+  ) => {
+    if (!api) return;
+    
+    try {
+      const authStatus = await api.getAuthStatus();
+      
+      if (authStatus.requires_password) {
+        // Show password modal
+        setPendingAction({
+          type: actionType,
+          handler: actionHandler,
+          title: actionTitle,
+          message: actionMessage
+        });
+        setShowPasswordModal(true);
+        setPassword("");
+        setPasswordError("");
+      } else {
+        // Already authenticated or no password required
+        await actionHandler();
+      }
+    } catch (error) {
+      console.error("Failed to check auth status:", error);
+      // Try to execute anyway
+      await actionHandler();
+    }
+  };
+  
+  const handlePasswordSubmit = async () => {
+    if (!api || !pendingAction) return;
+    
+    try {
+      const result = await api.authenticate(password);
+      
+      if (result.success) {
+        setShowPasswordModal(false);
+        setPassword("");
+        setPasswordError("");
+        
+        // Execute the pending action
+        await pendingAction.handler();
+        setPendingAction(null);
+      } else {
+        setPasswordError("Incorrect password. Please try again.");
+        setPassword("");
+      }
+    } catch (error) {
+      console.error("Password authentication error:", error);
+      setPasswordError("Network error. Please try again.");
+    }
+  };
+  
+  const handlePasswordCancel = () => {
+    setShowPasswordModal(false);
+    setPassword("");
+    setPasswordError("");
+    setPendingAction(null);
+  };
+  
   const handleStopIncubation = async () => {
     if (!api) return;
-    try {
-      await api.stopIncubation();
-      await fetchData();
-    } catch (error) {
-      console.error("Failed to stop incubation:", error);
-    }
+    
+    const actionHandler = async () => {
+      try {
+        await api.stopIncubation();
+        await fetchData();
+      } catch (error) {
+        console.error("Failed to stop incubation:", error);
+        Alert.alert("Error", "Failed to stop incubation");
+      }
+    };
+    
+    Alert.alert(
+      "Stop Incubation",
+      "Are you sure you want to stop the current incubation session?\n\nThis will:\n• Reset to default temperature (38.0°C)\n• Reset to default turn interval (8 hours)\n• Clear incubation tracking data",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Stop", 
+          style: "destructive",
+          onPress: () => {
+            checkAuthAndExecute(
+              "stop_incubation",
+              "Stop Incubation",
+              "Stopping incubation session",
+              actionHandler
+            );
+          }
+        }
+      ]
+    );
   };
 
   const handleSelectIncubator = async (url: string) => {
@@ -213,8 +391,40 @@ const DashboardScreen: React.FC = () => {
             <Text className="text-2xl font-bold text-gray-900">
               {t("dashboard.title")}
             </Text>
-            {manualIPs.length > 1 && (
-              <View className="flex-row space-x-2">
+            <View className="flex-row items-center space-x-2">
+              {/* Security Status */}
+              {status && (
+                <View className="px-3 py-1 rounded-full flex-row items-center" 
+                      style={{
+                        backgroundColor: status.password_enabled 
+                          ? (status.authenticated ? '#d1fae5' : '#fef3c7')
+                          : '#fee2e2'
+                      }}
+                >
+                  <View className="w-2 h-2 rounded-full mr-2" 
+                        style={{
+                          backgroundColor: status.password_enabled 
+                            ? (status.authenticated ? '#10b981' : '#f59e0b')
+                            : '#ef4444'
+                        }}
+                  />
+                  <Text className="text-sm font-medium" 
+                        style={{
+                          color: status.password_enabled 
+                            ? (status.authenticated ? '#065f46' : '#92400e')
+                            : '#7f1d1d'
+                        }}
+                  >
+                    {status.password_enabled 
+                      ? (status.authenticated ? 'AUTHENTICATED' : 'LOCKED')
+                      : 'NO PASSWORD'}
+                  </Text>
+                </View>
+              )}
+              
+            </View>
+              {manualIPs.length > 1 && (
+                <View className="flex-row space-x-2">
                 <Text className="text-gray-600">Incubator:</Text>
                 <View className="flex-row flex-wrap gap-1">
                   {manualIPs.map((ip, index) => (
@@ -370,30 +580,118 @@ const DashboardScreen: React.FC = () => {
             />
             <Button
               title="controls.resetTimer"
-              onPress={() => api?.sendCommand("reset_timer")}
+              onPress={() => {
+                Alert.alert(
+                  "Reset Timer",
+                  "Are you sure you want to reset the egg turner timer?\n\nThis will reset the countdown to the next automatic turn.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { 
+                      text: "Reset", 
+                      style: "default",
+                      onPress: async () => {
+                        try {
+                          await api?.sendCommand("reset_timer");
+                          await fetchData();
+                        } catch (error) {
+                          console.error("Failed to reset timer:", error);
+                          Alert.alert("Error", "Failed to reset timer");
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
               variant="secondary"
             />
-            <View className="flex-row space-x-3">
-              <Button
-                title="controls.startIncubation"
-                onPress={() => handleStartIncubation(BirdSpecies.CHICKEN)}
-                variant="success"
-                size="small"
-                className="flex-1"
-                disabled={status?.incubator_state === "incubating" || status?.incubation_active}
-              />
+            {/* Incubation Controls - Show/hide based on state */}
+            {status?.incubator_state === "idle" && !status?.incubation_active ? (
+              <View className="space-y-3">
+                <Text className="text-gray-700 font-medium mb-2">Select Species:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+                  <View className="flex-row space-x-2">
+                    {Object.entries(speciesNames).map(([key, name]) => {
+                      const speciesValue = parseInt(key) as BirdSpecies;
+                      const isSelected = selectedSpecies === speciesValue;
+                      return (
+                        <Button
+                          key={key}
+                          title={name}
+                          onPress={() => setSelectedSpecies(speciesValue)}
+                          variant={isSelected ? "primary" : "secondary"}
+                          size="small"
+                          translateTitle={false}
+                        />
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+                <Button
+                  title="controls.startIncubation"
+                  onPress={handleStartIncubation}
+                  variant="success"
+                />
+              </View>
+            ) : (
               <Button
                 title="controls.stopIncubation"
                 onPress={handleStopIncubation}
                 variant="danger"
+              />
+            )}
+          </View>
+        </View>
+      </ScrollView>
+      
+      {/* Password Authentication Modal */}
+      <Modal
+        visible={showPasswordModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handlePasswordCancel}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center p-4">
+          <View className="bg-white rounded-xl p-6 w-full max-w-md">
+            <Text className="text-xl font-bold text-gray-900 mb-2">
+              {pendingAction?.title || "Authentication Required"}
+            </Text>
+            <Text className="text-gray-600 mb-4">
+              {pendingAction?.message || "This operation requires authentication. Please enter your password:"}
+            </Text>
+            
+            {passwordError ? (
+              <Text className="text-red-500 mb-2">{passwordError}</Text>
+            ) : null}
+            
+            <TextInput
+              className="border border-gray-300 rounded-lg p-3 mb-4"
+              placeholder="Enter password"
+              secureTextEntry={true}
+              value={password}
+              onChangeText={setPassword}
+              autoFocus={true}
+              onSubmitEditing={handlePasswordSubmit}
+            />
+            
+            <View className="flex-row justify-end space-x-3">
+              <Button
+                title="Cancel"
+                onPress={handlePasswordCancel}
+                variant="secondary"
                 size="small"
-                className="flex-1"
-                disabled={status?.incubator_state === "idle" || !status?.incubation_active}
+                translateTitle={false}
+              />
+              <Button
+                title="Authenticate"
+                onPress={handlePasswordSubmit}
+                variant="primary"
+                size="small"
+                translateTitle={false}
               />
             </View>
           </View>
         </View>
-      </ScrollView>
+      </Modal>
     </SafeAreaView>
   );
 };
