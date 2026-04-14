@@ -82,10 +82,25 @@ const IncubatorsListScreen: React.FC = () => {
   // Reload settings when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadSettings();
-      refreshIncubators();
+      loadSettingsAndRefresh();
     }, [])
   );
+
+  const loadSettingsAndRefresh = async () => {
+    try {
+      const settings = await settingsService.getSettings();
+      console.log('Loaded settings:', {
+        manualIPs: settings.manualIPs,
+        autoDiscover: settings.autoDiscover,
+        manualIPsCount: settings.manualIPs.length
+      });
+      setManualIPs(settings.manualIPs);
+      setAutoDiscover(settings.autoDiscover);
+      await refreshIncubators(settings.manualIPs, settings.autoDiscover);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -97,14 +112,20 @@ const IncubatorsListScreen: React.FC = () => {
     }
   };
 
-  const refreshIncubators = async () => {
+  const refreshIncubators = async (manualIPsToCheck: string[] = manualIPs, autoDiscoverToCheck: boolean = autoDiscover) => {
     setRefreshing(true);
     
     const discoveredIncubators: IncubatorListItem[] = [];
     
+    console.log('Refreshing incubators with:', {
+      manualIPsToCheck,
+      autoDiscoverToCheck,
+      manualIPsToCheckCount: manualIPsToCheck.length
+    });
+    
     try {
       // Check auto-discover address if enabled
-      if (autoDiscover) {
+      if (autoDiscoverToCheck) {
         const autoDiscoverAddress = "http://incubator-esp32c.local";
         try {
           const api = new IncubatorAPI(autoDiscoverAddress);
@@ -132,7 +153,7 @@ const IncubatorsListScreen: React.FC = () => {
       }
       
       // Check manual IPs
-      for (const ip of manualIPs) {
+      for (const ip of manualIPsToCheck) {
         try {
           const api = new IncubatorAPI(ip);
           const status = await api.getStatus();

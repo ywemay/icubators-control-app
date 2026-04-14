@@ -31,7 +31,14 @@
     "remainingDays": "Remaining Days",
     "candlingDay": "Candling Day",
     "lockdownDay": "Lockdown Day",
-    "hatchingDay": "Hatching Day"
+    "hatchingDay": "Hatching Day",
+    "systemUptime": "System Uptime",
+    "wifiStatus": "WiFi Status",
+    "incubatorState": "Incubator State",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "incubating": "Incubating",
+    "idle": "Idle"
   },
   "controls": {
     "title": "Controls",
@@ -96,6 +103,7 @@
     "noIncubators": "No Incubators Found",
     "addFirstIncubator": "Add your first incubator to get started",
     "addIncubator": "Add Incubator",
+    "selectIncubator": "Select Incubator",
     "offline": "Offline",
     "idle": "Idle",
     "incubating": "Incubating",

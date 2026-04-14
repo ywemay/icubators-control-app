@@ -318,6 +318,20 @@ const DashboardScreen: React.FC = () => {
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) {
+      return `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
+
   // Convert temperature based on selected unit
   const convertTemperature = (celsius: number): { value: number; unit: string } => {
     if (temperatureUnit === "fahrenheit") {
@@ -342,7 +356,7 @@ const DashboardScreen: React.FC = () => {
             </Text>
             {manualIPs.length > 0 && (
               <View className="mt-4">
-                <Text className="text-gray-700 mb-2">Select Incubator:</Text>
+                <Text className="text-gray-700 mb-2">{t("incubators.selectIncubator")}</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {manualIPs.map((ip, index) => (
                     <Button
@@ -423,23 +437,7 @@ const DashboardScreen: React.FC = () => {
               )}
               
             </View>
-              {manualIPs.length > 1 && (
-                <View className="flex-row space-x-2">
-                <Text className="text-gray-600">Incubator:</Text>
-                <View className="flex-row flex-wrap gap-1">
-                  {manualIPs.map((ip, index) => (
-                    <Button
-                      key={index}
-                      title={ip.replace('http://', '').split('/')[0]}
-                      onPress={() => handleSelectIncubator(ip)}
-                      variant={selectedIncubator === ip ? "primary" : "secondary"}
-                      size="small"
-                      translateTitle={false}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
+
           </View>
           <Text className="text-gray-600 mt-1">
             {status.hostname} • {status.ip_address}
@@ -458,6 +456,8 @@ const DashboardScreen: React.FC = () => {
                   ? "good"
                   : "warning"
               }
+              targetValue={convertTemperature(status.target_temperature).value.toFixed(1)}
+              targetLabel={t("dashboard.target")}
             />
           )}
           <StatusCard
@@ -469,6 +469,33 @@ const DashboardScreen: React.FC = () => {
                 ? "good"
                 : "warning"
             }
+            targetValue={status.target_humidity.toFixed(1)}
+            targetLabel={t("dashboard.target")}
+          />
+        </View>
+
+        {/* Additional Status Cards */}
+        <View className="flex-row flex-wrap gap-4 mb-6">
+          <StatusCard
+            title="dashboard.systemUptime"
+            value={formatUptime(status.uptime)}
+            status="neutral"
+          />
+          <StatusCard
+            title="dashboard.wifiStatus"
+            value={status.wifi_connected ? t("dashboard.connected") : t("dashboard.disconnected")}
+            status={status.wifi_connected ? "good" : "danger"}
+          />
+          <StatusCard
+            title="dashboard.incubatorState"
+            value={status.incubator_state === "incubating" ? t("dashboard.incubating") : t("dashboard.idle")}
+            status={status.incubator_state === "incubating" ? "good" : "neutral"}
+          />
+          <StatusCard
+            title="dashboard.turnInterval"
+            value={Math.floor(status.turn_interval / 3600)}
+            unit="h"
+            status="neutral"
           />
         </View>
 
@@ -504,6 +531,18 @@ const DashboardScreen: React.FC = () => {
                 {t("dashboard.eggTurner")}
               </Text>
             </View>
+            {status.light_on !== undefined && (
+              <View className="flex-row items-center">
+                <View
+                  className={`w-3 h-3 rounded-full mr-2 ${
+                    status.light_on ? "bg-yellow-500" : "bg-gray-300"
+                  }`}
+                />
+                <Text className="text-gray-700">
+                  {t("dashboard.light")}
+                </Text>
+              </View>
+            )}
           </View>
           {status.next_turn_seconds > 0 && (
             <View className="mt-4">

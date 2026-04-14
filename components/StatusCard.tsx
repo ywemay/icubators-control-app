@@ -8,6 +8,8 @@ interface StatusCardProps {
   unit?: string;
   status?: "good" | "warning" | "danger" | "neutral";
   icon?: React.ReactNode;
+  targetValue?: string | number;
+  targetLabel?: string;
 }
 
 const StatusCard: React.FC<StatusCardProps> = ({
@@ -16,6 +18,8 @@ const StatusCard: React.FC<StatusCardProps> = ({
   unit = "",
   status = "neutral",
   icon,
+  targetValue,
+  targetLabel = "Target",
 }) => {
   const { t } = useLanguage();
   const getStatusColor = () => {
@@ -64,6 +68,18 @@ const StatusCard: React.FC<StatusCardProps> = ({
           </Text>
         )}
       </View>
+      {targetValue !== undefined && (
+        <View className="mt-2 pt-2 border-t border-gray-300 border-opacity-50">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-xs text-gray-600">
+              {targetLabel}:
+            </Text>
+            <Text className="text-sm font-medium text-gray-800">
+              {targetValue}{unit}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
