@@ -83,7 +83,8 @@
     "connectionFailed": "Connection failed",
     "invalidResponse": "Invalid response from device",
     "deviceNotFound": "Device not found",
-    "networkError": "Network error"
+    "networkError": "Network error",
+    "failedToRefresh": "Failed to refresh incubators"
   },
   "success": {
     "commandSent": "Command sent successfully",

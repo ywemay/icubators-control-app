@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, NavigationProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useToast } from "../contexts/ToastContext";
 import IncubatorAPI, { BirdSpecies, speciesNames } from "../services/api";
 import settingsService from "../services/settings";
 
@@ -44,10 +45,25 @@ interface IncubatorListItem {
 const IncubatorsListScreen: React.FC = () => {
   const { t } = useLanguage();
   const navigation = useNavigation<IncubatorsListScreenNavigationProp>();
+  const { showToast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [incubators, setIncubators] = useState<IncubatorListItem[]>([]);
   const [manualIPs, setManualIPs] = useState<string[]>([]);
   const [autoDiscover, setAutoDiscover] = useState(true);
+
+  // Helper function to get a friendly incubator name
+  const getFriendlyIncubatorName = (hostname: string, ipAddress: string): string => {
+    // If hostname is just an IP or looks like a default hostname, use a friendly name
+    if (!hostname || hostname === ipAddress || hostname.includes('incubator-esp32')) {
+      // Extract last part of IP for a friendly name
+      const ipParts = ipAddress.replace('http://', '').replace('https://', '').split('.');
+      const lastOctet = ipParts[ipParts.length - 1];
+      return `Incubator ${lastOctet}`;
+    }
+    
+    // Otherwise use the hostname
+    return hostname;
+  };
 
   // Helper function to get species name from species string
   const getSpeciesName = (speciesString: string | null): string => {
@@ -134,7 +150,7 @@ const IncubatorsListScreen: React.FC = () => {
           
           discoveredIncubators.push({
             id: autoDiscoverAddress,
-            name: status.hostname || "Auto-discovered Incubator",
+            name: getFriendlyIncubatorName(status.hostname, status.ip_address || autoDiscoverAddress),
             ipAddress: status.ip_address || autoDiscoverAddress,
             hostname: status.hostname || "incubator-esp32c",
             temperature: status.temperature,
@@ -161,7 +177,7 @@ const IncubatorsListScreen: React.FC = () => {
           
           discoveredIncubators.push({
             id: ip,
-            name: status.hostname || `Incubator at ${ip}`,
+            name: getFriendlyIncubatorName(status.hostname, status.ip_address || ip),
             ipAddress: status.ip_address || ip,
             hostname: status.hostname || ip,
             temperature: status.temperature,
@@ -179,7 +195,7 @@ const IncubatorsListScreen: React.FC = () => {
           // Add offline incubator
           discoveredIncubators.push({
             id: ip,
-            name: `Incubator at ${ip}`,
+            name: getFriendlyIncubatorName(ip, ip),
             ipAddress: ip,
             hostname: ip,
             temperature: null,
@@ -196,9 +212,9 @@ const IncubatorsListScreen: React.FC = () => {
       }
       
       setIncubators(discoveredIncubators);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to refresh incubators:", error);
-      Alert.alert(t("common.error"), t("dashboard.failedToRefresh"));
+      showToast(t("errors.failedToRefresh"), 'error');
     } finally {
       setRefreshing(false);
     }

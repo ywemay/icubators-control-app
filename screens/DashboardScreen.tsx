@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, RefreshControl, Alert, Modal, TextInput, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Alert, Modal, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute, RouteProp } from "@react-navigation/native";
 import StatusCard from "../components/StatusCard";
 import Button from "../components/Button";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useToast } from "../contexts/ToastContext";
 import IncubatorAPI, { BirdSpecies, speciesNames } from "../services/api";
 import settingsService from "../services/settings";
 
@@ -17,6 +18,7 @@ type DashboardScreenRouteProp = RouteProp<
 const DashboardScreen: React.FC = () => {
   const route = useRoute<DashboardScreenRouteProp>();
   const { incubatorId } = route.params || {};
+  const { showToast } = useToast();
   const { t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<any>(null);
@@ -90,9 +92,16 @@ const DashboardScreen: React.FC = () => {
       ]);
       setStatus(statusData);
       setIncubationStatus(incubationData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch data:", error);
       setStatus(null);
+      
+      // Show toast for network errors
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        showToast("Cannot connect to incubator. Please check network connection.", 'error');
+      } else {
+        showToast("Failed to fetch incubator data.", 'error');
+      }
     }
   };
 
@@ -298,16 +307,7 @@ const DashboardScreen: React.FC = () => {
     );
   };
 
-  const handleSelectIncubator = async (url: string) => {
-    setSelectedIncubator(url);
-    try {
-      await settingsService.setSelectedIncubator(url);
-      // Refresh data after selecting new incubator
-      await fetchData();
-    } catch (error) {
-      console.error("Failed to save selected incubator:", error);
-    }
-  };
+
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -318,7 +318,11 @@ const DashboardScreen: React.FC = () => {
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const formatUptime = (seconds: number) => {
+  const formatUptime = (seconds: number | undefined) => {
+    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+      return "--";
+    }
+    
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -354,37 +358,21 @@ const DashboardScreen: React.FC = () => {
             <Text className="text-2xl font-bold text-gray-900">
               {t("dashboard.title")}
             </Text>
-            {manualIPs.length > 0 && (
-              <View className="mt-4">
-                <Text className="text-gray-700 mb-2">{t("incubators.selectIncubator")}</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {manualIPs.map((ip, index) => (
-                    <Button
-                      key={index}
-                      title={ip.replace('http://', '').split('/')[0]}
-                      onPress={() => handleSelectIncubator(ip)}
-                      variant={selectedIncubator === ip ? "primary" : "secondary"}
-                      size="small"
-                      translateTitle={false}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
+            <Text className="text-gray-600 mt-1">
+              {selectedIncubator?.replace('http://', '').replace('https://', '')}
+            </Text>
           </View>
           
           <View className="flex-1 items-center justify-center">
-            <Text className="text-lg text-gray-600">
-              {t("errors.connectionFailed")}
-            </Text>
-            <Text className="text-gray-500 mt-1">
-              Trying to connect to: {selectedIncubator}
-            </Text>
-            <Button
-              title="buttons.refresh"
-              onPress={onRefresh}
-              className="mt-4"
-            />
+            <View className="items-center">
+              <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
+              <Text className="text-gray-600 text-lg font-medium">
+                Connecting to incubator...
+              </Text>
+              <Text className="text-gray-500 mt-2 text-center">
+                Please wait while we establish connection
+              </Text>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -565,6 +553,31 @@ const DashboardScreen: React.FC = () => {
             <Text className="text-lg font-semibold text-gray-900 mb-4">
               {t("dashboard.incubation")}
             </Text>
+            
+            {/* Incubation Progress Bar */}
+            <View className="mb-6">
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-gray-700 font-medium">
+                  Day {incubationStatus.elapsed_days} of {incubationStatus.elapsed_days + incubationStatus.remaining_days}
+                </Text>
+                <Text className="text-gray-700 font-medium">
+                  {Math.round((incubationStatus.elapsed_days / (incubationStatus.elapsed_days + incubationStatus.remaining_days)) * 100)}%
+                </Text>
+              </View>
+              <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <View 
+                  className="h-full bg-green-500 rounded-full"
+                  style={{
+                    width: `${(incubationStatus.elapsed_days / (incubationStatus.elapsed_days + incubationStatus.remaining_days)) * 100}%`
+                  }}
+                />
+              </View>
+              <View className="flex-row justify-between mt-1">
+                <Text className="text-xs text-gray-500">Start</Text>
+                <Text className="text-xs text-gray-500">Hatch</Text>
+              </View>
+            </View>
+            
             <View className="space-y-3">
               <View className="flex-row justify-between">
                 <Text className="text-gray-700">{t("dashboard.species")}</Text>

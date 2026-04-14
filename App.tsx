@@ -8,6 +8,7 @@ import IncubatorsListScreen from "./screens/IncubatorsListScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
+import { ToastProvider } from "./contexts/ToastContext";
 
 // Define the stack param list
 type RootStackParamList = {
@@ -93,7 +94,9 @@ function AppContent() {
 export default function App() {
   return (
     <LanguageProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </LanguageProvider>
   );
 }
