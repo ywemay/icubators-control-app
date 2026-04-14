@@ -366,6 +366,25 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
+  // Helper function to get a friendly incubator name (same as in IncubatorsListScreen)
+  const getFriendlyIncubatorName = (hostname: string, ipAddress: string, incubatorName?: string): string => {
+    // First priority: use the human-defined incubator name if available
+    if (incubatorName) {
+      return incubatorName;
+    }
+    
+    // If hostname is just an IP or looks like a default hostname, use a friendly name
+    if (!hostname || hostname === ipAddress || hostname.includes('incubator-esp32')) {
+      // Extract last part of IP for a friendly name
+      const ipParts = ipAddress.replace('http://', '').replace('https://', '').split('.');
+      const lastOctet = ipParts[ipParts.length - 1];
+      return `Incubator ${lastOctet}`;
+    }
+    
+    // Otherwise use the hostname
+    return hostname;
+  };
+
   // Convert temperature based on selected unit
   const convertTemperature = (celsius: number): { value: number; unit: string } => {
     if (temperatureUnit === "fahrenheit") {
@@ -386,7 +405,11 @@ const DashboardScreen: React.FC = () => {
         <View className="flex-1 p-4">
           <View className="mb-6">
             <Text className="text-2xl font-bold text-gray-900">
-              {t("dashboard.title")}
+              {selectedIncubator ? getFriendlyIncubatorName(
+                selectedIncubator.replace('http://', '').replace('https://', ''),
+                selectedIncubator,
+                undefined
+              ) : t("dashboard.title")}
             </Text>
             <Text className="text-gray-600 mt-1">
               {selectedIncubator?.replace('http://', '').replace('https://', '')}
@@ -421,7 +444,7 @@ const DashboardScreen: React.FC = () => {
         <View className="mb-6">
           <View className="flex-row justify-between items-center">
             <Text className="text-2xl font-bold text-gray-900">
-              {t("dashboard.title")}
+              {getFriendlyIncubatorName(status.hostname, status.ip_address, (status as any).incubator_name)}
             </Text>
             <View className="flex-row items-center space-x-2">
               {/* Security Status */}
@@ -458,7 +481,7 @@ const DashboardScreen: React.FC = () => {
 
           </View>
           <Text className="text-gray-600 mt-1">
-            {(status as any).incubator_name || status.hostname} • {status.ip_address}
+            {getFriendlyIncubatorName(status.hostname, status.ip_address, (status as any).incubator_name)} • {status.ip_address}
           </Text>
         </View>
 

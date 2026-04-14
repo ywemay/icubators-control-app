@@ -23,6 +23,7 @@
     "eggTurner": "翻蛋器",
     "on": "开",
     "off": "关",
+    "day": "天",
     "timeUntilNextTurn": "下次翻蛋时间",
     "turnInterval": "翻蛋间隔",
     "incubation": "孵化",
